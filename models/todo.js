@@ -19,10 +19,6 @@ module.exports = (sequelize, DataTypes) => {
       return this.update({ completed: true });
     }
 
-    static getAllTodos() {
-      return this.findAll({ order: [["id", "ASC"]] });
-    }
-
     static getTodos() {
       return this.findAll();
     }

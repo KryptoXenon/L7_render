@@ -1,6 +1,3 @@
-/* eslint-disable comma-dangle */
-/* eslint-disable semi */
-/* eslint-disable quotes */
 const request = require("supertest");
 
 const db = require("../models/index");
@@ -8,18 +5,23 @@ const app = require("../app");
 
 let server, agent;
 
-describe("Todo test suite", () => {
+describe("Todo Application", function () {
   beforeAll(async () => {
     await db.sequelize.sync({ force: true });
     server = app.listen(3000, () => {});
     agent = request.agent(server);
   });
+
   afterAll(async () => {
-    await db.sequelize.close();
-    server.close();
+    try {
+      await db.sequelize.close();
+      await server.close();
+    } catch (error) {
+      console.log(error);
+    }
   });
 
-  test("responds with json at /todos", async () => {
+  test("Creates a todo and responds with json at /todos POST endpoint", async () => {
     const response = await agent.post("/todos").send({
       title: "Buy milk",
       dueDate: new Date().toISOString(),
@@ -33,45 +35,7 @@ describe("Todo test suite", () => {
     expect(parsedResponse.id).toBeDefined();
   });
 
-  test("Fetches the list all todos", async () => {
-    await agent.post("/todos").send({
-      title: "Go to gym",
-      dueDate: new Date().toISOString(),
-      completed: false,
-    });
-    await agent.post("/todos").send({
-      title: "Go to shopping",
-      dueDate: new Date().toISOString(),
-      completed: false,
-    });
-    const response = await agent.get("/todos");
-    const parsedResponse = JSON.parse(response.text);
-
-    expect(parsedResponse.length).toBe(3);
-    expect(parsedResponse[2].title).toBe("Go to shopping");
-  });
-
-  test("Deletes a todo with the given ID", async () => {
-    const response = await agent.post("/todos").send({
-      title: "Call Aryan",
-      dueDate: new Date().toISOString(),
-      completed: false,
-    });
-    const parsedResponse = JSON.parse(response.text);
-    const todoID = parsedResponse.id;
-
-    const deleteTodoResponse = await agent.delete(`/todos/${todoID}`).send();
-    const parsedDeleteResponse = JSON.parse(deleteTodoResponse.text);
-    expect(parsedDeleteResponse).toBe(true);
-
-    const deleteFakeTodoResponse = await agent.delete(`/todos/9999`).send();
-    const parsedDeleteFakeTodoResponse = JSON.parse(
-      deleteFakeTodoResponse.text
-    );
-    expect(parsedDeleteFakeTodoResponse).toBe(false);
-  });
-
-  test("Mark a todo as complete", async () => {
+  test("Marks a todo with the given ID as complete", async () => {
     const response = await agent.post("/todos").send({
       title: "Buy milk",
       dueDate: new Date().toISOString(),
@@ -82,10 +46,49 @@ describe("Todo test suite", () => {
 
     expect(parsedResponse.completed).toBe(false);
 
-    const markAsCompletedResponse = await agent
-      .put(`/todos/${todoID}/markAsCompleted`)
+    const markCompleteResponse = await agent
+      .put(`/todos/${todoID}/markASCompleted`)
       .send();
-    const parsedUpdateResponse = JSON.parse(markAsCompletedResponse.text);
+    const parsedUpdateResponse = JSON.parse(markCompleteResponse.text);
     expect(parsedUpdateResponse.completed).toBe(true);
+  });
+
+  test("Fetches all todos in the database using /todos endpoint", async () => {
+    await agent.post("/todos").send({
+      title: "Buy xbox",
+      dueDate: new Date().toISOString(),
+      completed: false,
+    });
+    await agent.post("/todos").send({
+      title: "Buy ps3",
+      dueDate: new Date().toISOString(),
+      completed: false,
+    });
+    const response = await agent.get("/todos");
+    const parsedResponse = JSON.parse(response.text);
+
+    expect(parsedResponse.length).toBe(4);
+    expect(parsedResponse[3]["title"]).toBe("Buy ps3");
+  });
+
+  test("Deletes a todo with the given ID if it exists and sends a boolean response", async () => {
+    const response = await agent.post("/todos").send({
+      title: "Buy ps3",
+      dueDate: new Date().toISOString(),
+      completed: false,
+    });
+
+    const parsedResponse = JSON.parse(response.text);
+    const delByID = parsedResponse.id;
+
+    const delrespo = await agent.delete(`/todos/${delByID}`).send();
+    const delparrespo = JSON.parse(delrespo.text);
+
+    expect(delparrespo).toBe(true);
+
+    const nondelrespo = await agent.delete(`/todos/9999`).send();
+    const nondelparespo = JSON.parse(nondelrespo.text);
+
+    expect(nondelparespo).toBe(false);
   });
 });
